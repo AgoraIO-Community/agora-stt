@@ -1,0 +1,504 @@
+/* Modern UI Style Library
+ * Extracted from Agora Real-Time Transcription & Translation App
+ * Reusable across multiple applications
+ */
+
+/* ============================================
+   MODERN BUTTON STYLES
+   ============================================ */
+
+.modern-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.modern-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.modern-btn:hover::before {
+  left: 100%;
+}
+
+.modern-btn-primary {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #6366f1 100%);
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(6, 182, 212, 0.39);
+}
+
+.modern-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px 0 rgba(6, 182, 212, 0.5);
+}
+
+.modern-btn-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39);
+}
+
+.modern-btn-success:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.5);
+}
+
+.modern-btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.39);
+}
+
+.modern-btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px 0 rgba(239, 68, 68, 0.5);
+}
+
+.modern-btn-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.39);
+}
+
+.modern-btn-warning:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px 0 rgba(245, 158, 11, 0.5);
+}
+
+.modern-btn-secondary {
+  background: linear-gradient(135deg, #475569 0%, #334155 100%);
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(71, 85, 105, 0.39);
+}
+
+.modern-btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px 0 rgba(71, 85, 105, 0.5);
+}
+
+.modern-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Icon buttons */
+.modern-btn-icon {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 14px 0 rgba(6, 182, 212, 0.39);
+  min-width: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modern-btn-icon:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px 0 rgba(6, 182, 212, 0.5);
+}
+
+.modern-btn-remove {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px 0 rgba(239, 68, 68, 0.3);
+}
+
+.modern-btn-remove:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px 0 rgba(239, 68, 68, 0.5);
+}
+
+/* ============================================
+   MODAL STYLES
+   ============================================ */
+
+dialog {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: white;
+  padding: 0;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  max-width: 90vw;
+  width: 800px;
+  margin: 2rem auto;
+  overflow-y: auto;
+  max-height: 90vh;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+dialog > * {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+dialog > *:first-child {
+  padding-top: 2rem;
+}
+
+dialog > *:last-child {
+  padding-bottom: 2rem;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+}
+
+dialog h2 {
+  padding: 0 1rem;
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Modal footer */
+dialog .flex.justify-end {
+  margin: 1.5rem 0 0 0;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.5);
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  width: 100%;
+  border-radius: 0 0 1.5rem 1.5rem;
+}
+
+/* Content container inside dialog */
+dialog > div:not(.flex) {
+  padding: 0 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Modal buttons */
+dialog button {
+  min-width: 80px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* ============================================
+   INPUT & FORM STYLES
+   ============================================ */
+
+input[type="text"], 
+input[type="number"], 
+input[type="password"],
+input[type="email"],
+select, 
+textarea {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background: rgba(30, 41, 59, 0.6) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: white !important;
+  border-radius: 0.625rem;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+input[type="text"]:focus, 
+input[type="number"]:focus, 
+input[type="password"]:focus,
+input[type="email"]:focus,
+select:focus, 
+textarea:focus {
+  outline: none;
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+  background: rgba(30, 41, 59, 0.8) !important;
+}
+
+input[type="text"]:disabled, 
+input[type="number"]:disabled, 
+select:disabled {
+  background: rgba(15, 23, 42, 0.4) !important;
+  color: #64748b !important;
+  cursor: not-allowed;
+  opacity: 0.6;
+  border-color: rgba(148, 163, 184, 0.1);
+}
+
+input[type="text"]::placeholder, 
+input[type="number"]::placeholder,
+input[type="password"]::placeholder,
+input[type="email"]::placeholder {
+  color: #64748b;
+}
+
+/* Remove number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Select dropdown styling */
+select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+  accent-color: #06b6d4;
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+/* Labels */
+label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+/* ============================================
+   POPUP NOTIFICATION STYLES
+   ============================================ */
+
+.popupHidden {
+  display: none;
+}
+
+.popupShow {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.4), 0 0 0 1px rgba(6, 182, 212, 0.2);
+  animation: fadeInOut 0.3s ease-in-out;
+  z-index: 10000;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translate(-50%, 20px); }
+  100% { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ============================================
+   CARD & PANEL STYLES
+   ============================================ */
+
+.modern-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(6, 182, 212, 0.1);
+  transition: all 0.3s ease;
+}
+
+.modern-card:hover {
+  border-color: rgba(6, 182, 212, 0.3);
+  box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.2), 0 0 0 1px rgba(6, 182, 212, 0.2);
+}
+
+.modern-panel {
+  background: rgba(30, 41, 59, 0.6);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Spacing utilities */
+.space-y-6 > * + * {
+  margin-top: 1.5rem;
+}
+
+.space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+.space-y-2 > * + * {
+  margin-top: 0.5rem;
+}
+
+/* Border utilities */
+.border-t {
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+
+/* Settings grid */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ============================================
+   SCROLLBAR STYLES
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(6, 182, 212, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.7);
+}
+
+/* ============================================
+   CODE/PRE STYLES
+   ============================================ */
+
+pre, code {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  color: #e2e8f0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+pre {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* ============================================
+   BODY & LAYOUT
+   ============================================ */
+
+body {
+  padding: 1.5rem;
+  overflow-x: hidden;
+}
+
+@media (min-width: 640px) {
+  body {
+    padding: 2rem;
+  }
+}
+
+/* ============================================
+   GRADIENT TEXT UTILITIES
+   ============================================ */
+
+.gradient-text-primary {
+  background: linear-gradient(to right, #06b6d4, #3b82f6, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-success {
+  background: linear-gradient(to right, #10b981, #059669);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-warning {
+  background: linear-gradient(to right, #f59e0b, #d97706);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-danger {
+  background: linear-gradient(to right, #ef4444, #dc2626);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================
+   ICON CONTAINER STYLES
+   ============================================ */
+
+.icon-container {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+}
+
+.icon-container-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.icon-container-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.icon-container-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.icon-container-purple {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+}
