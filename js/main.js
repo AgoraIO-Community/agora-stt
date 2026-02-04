@@ -1,13 +1,29 @@
-// Main initialization and event handlers
+// ============================================================================
+// MAIN APPLICATION FLOW
+// ============================================================================
+// This module handles initialization and primary user interactions:
+// - Join/leave channel
+// - Start/stop transcription
+// - Page load initialization
 
-// Load settings on page load
+/**
+ * Initialize application on page load
+ * 
+ * Sets up:
+ * 1. Button states (which actions are available)
+ * 2. Loads saved settings from localStorage
+ * 3. Applies version-specific UI changes
+ * 4. Loads translation configuration
+ */
 $(document).ready(function() {
   updateButtonStates('initial');
   loadSavedSettings();
+  
   // Apply version-specific UI changes after settings are loaded
   handleVersionChange();
   
   // COMMENTED OUT: Event listeners for auto-sync behavior
+  // This was removed because it caused confusion - users prefer explicit control
   /*
   // Add event listeners for pub bot fields to sync with sub bot fields in 7.x
   $("#pusher-uid, #pusher-token").on('input', function() {
@@ -25,19 +41,37 @@ $(document).ready(function() {
   */
 });
 
-// Load settings on page load
+// Load translation settings from localStorage when page loads
 document.addEventListener('DOMContentLoaded', loadTranslationSettings);
 
-// Save settings when STT modal is closed
+// Auto-save translation settings when STT modal is closed
 document.getElementById('sttModal').addEventListener('close', saveTranslationSettings);
 
-// Update join handler
+// ============================================================================
+// CHANNEL JOIN/LEAVE HANDLERS
+// ============================================================================
+
+/**
+ * Join an Agora RTC channel
+ * 
+ * This is the entry point for real-time communication. Steps:
+ * 1. Validate configuration (App ID and channel name required)
+ * 2. Parse UID from input (can be string or integer)
+ * 3. Join the Agora channel
+ * 4. Create and publish audio/video tracks
+ * 5. Display local video and transcription UI
+ * 6. Update button states to reflect new state
+ * 
+ * After joining, you can start transcription to enable STT features.
+ */
 $("#join").click(async function() {
+  // Validation: must have App ID and channel configured
   if (!options.appid || !options.channel) {
     showPopup("Please configure connection settings first");
     return;
   }
-  // Get UID and type from input and checkbox
+  
+  // Parse UID based on user preference (string or integer)
   const uidVal = $("#uid").val();
   const uidString = $("#uid-string").is(":checked");
   let joinUid = null;
@@ -45,17 +79,21 @@ $("#join").click(async function() {
     joinUid = uidString ? uidVal : parseInt(uidVal, 10);
     if (!uidString && isNaN(joinUid)) joinUid = null;
   }
+  
   try {
+    // Join the channel - returns assigned UID if joinUid is null
     options.uid = await client.join(options.appid, options.channel, null, joinUid);
     console.log("Joined with UID:", options.uid);
     
+    // Request camera and microphone access, create tracks
     const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
     localTrack = videoTrack;
     localAudioTrack = audioTrack;
     
+    // Publish tracks to channel (other users can now see/hear you)
     await client.publish([audioTrack, videoTrack]);
     
-    // Setup local video container with proper translation UI
+    // Create local video container with transcription overlay
     const localContainer = $(`
       <div id="video-wrapper-${options.uid}" class="video-wrapper">
         <div class="language-selector">
@@ -74,20 +112,25 @@ $("#join").click(async function() {
       </div>
     `);
 
-    // Replace existing local player
+    // Replace existing local player placeholder
     $("#local-player").parent().parent().replaceWith(localContainer);
+    
+    // Start playing local video
     videoTrack.play("local-player");
     
     // Initialize language selector for local user
     updateLanguageSelector(options.uid);
     
+    // Update button states
     updateButtonStates('joined');
-    //in case RTT was started first, adjust Start RTT and Stop RTT buttons states
+    
+    // Edge case: if transcription was started before joining (unusual but possible)
     if (taskId) {
       $("#start-trans").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
       $("#stop-trans").prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
       $("#translation-controls").removeClass('hidden');
     }
+    
     showPopup("Joined channel successfully");
   } catch (error) {
     console.error(error);
@@ -95,37 +138,62 @@ $("#join").click(async function() {
   }
 });
 
-// Update leave handler
+/**
+ * Leave the Agora RTC channel
+ * 
+ * Performs complete cleanup:
+ * 1. Clear all overlay auto-hide timers
+ * 2. Hide all transcription overlays
+ * 3. Stop and close local media tracks (releases camera/mic)
+ * 4. Leave the channel
+ * 5. Clear all UI elements (local and remote video)
+ * 6. Reset button states
+ * 
+ * Note: This does NOT stop transcription. The STT agent continues running
+ * in the channel even after you leave. Call Stop RTT first if you want to
+ * stop transcription.
+ */
 $("#leave").click(async function() {
   try {
-    // Clear all timeouts including local user
+    // Clear all pending overlay timeouts (prevents memory leaks)
     overlayTimeouts.forEach((timeout, uid) => {
       clearTimeout(timeout);
     });
     overlayTimeouts.clear();
     
-    // Hide all overlays
+    // Hide all transcription overlays
     $(`.transcription-overlay`).addClass('hidden');
     
+    // Stop and close local video track
     if (localTrack) {
-      localTrack.stop();
-      localTrack.close();
+      localTrack.stop();   // Stop the camera
+      localTrack.close();  // Free resources
     }
+    
+    // Stop and close local audio track
     if (localAudioTrack) {
-      localAudioTrack.stop();
-      localAudioTrack.close();
+      localAudioTrack.stop();   // Stop the microphone
+      localAudioTrack.close();  // Free resources
     }
+    
+    // Leave the Agora channel
     await client.leave();
+    
+    // Clear all video UI elements
     $("#local-player").empty();
     $("#remote-playerlist").empty();
     
+    // Reset to initial state
     updateButtonStates('initial');
-    //account for RTT task still running after leaving
+    
+    // Edge case: transcription still running after leaving
+    // (unusual but possible - user left channel but STT agent still active)
     if (taskId) {
       $("#start-trans").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
       $("#stop-trans").prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
       $("#translation-controls").addClass('hidden');
     }
+    
     showPopup("Left channel successfully");
   } catch (error) {
     console.error(error);
@@ -133,41 +201,81 @@ $("#leave").click(async function() {
   }
 });
 
-// Update the start-trans click handler
+// ============================================================================
+// TRANSCRIPTION START/STOP HANDLERS
+// ============================================================================
+
+/**
+ * Start real-time transcription
+ * 
+ * Validates configuration and calls the STT API to start transcription.
+ * The API creates an "agent" that joins the channel, subscribes to audio,
+ * and publishes transcription/translation results as stream messages.
+ * 
+ * Prerequisites:
+ * - STT credentials (customer key and secret)
+ * - App ID and channel name
+ * - Optionally: join the channel first (can start before joining)
+ */
 $("#start-trans").click(async function() {
   try {
+    // Validate STT credentials
     if (!$("#key").val() || !$("#secret").val()) {
       showPopup("Please configure STT settings first");
       document.getElementById('sttModal').showModal();
       return;
     }
 
+    // Validate connection settings
     if (!options.appid || !options.channel) {
       showPopup("Please configure connection settings first");
       document.getElementById('connectionModal').showModal();
       return;
     }
 
+    // Disable button to prevent double-clicking
     $("#start-trans").prop('disabled', true);
+    
+    // Call the STT API
     await startTranscription();
+    
     showPopup("Started transcription");
   } catch (error) {
     console.error(error);
     showPopup(error.message || "Failed to start transcription");
+    
+    // Re-enable button on error
     $("#start-trans").prop('disabled', false);
   }
 });
 
-// Update the stop-trans click handler
+/**
+ * Stop real-time transcription
+ * 
+ * Tells the STT agent to leave the channel and stop processing.
+ * - Clears all transcription/translation overlays
+ * - Resets translation state
+ * - Hides translation controls
+ * 
+ * After stopping, you can start transcription again with new settings.
+ */
 $("#stop-trans").click(async function() {
   try {
+    // Disable button to prevent double-clicking
     $("#stop-trans").prop('disabled', true);
+    
+    // Call the stop API
     await stopTranscription();
+    
+    // Re-enable start button
     $("#start-trans").prop('disabled', false);
+    
     showPopup("Stopped transcription");
   } catch (error) {
     console.error(error);
     showPopup("Failed to stop transcription");
+    
+    // Re-enable button on error
     $("#stop-trans").prop('disabled', false);
   }
 });

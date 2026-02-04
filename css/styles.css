@@ -742,3 +742,13 @@ select {
   background: rgba(6, 182, 212, 0.7);
 }
 
+/* Transcripts modal */
+.transcripts-modal {
+  min-width: min(480px, 92vw);
+  max-width: 640px;
+}
+
+.transcripts-modal-content {
+  min-height: 120px;
+}
+

@@ -1,11 +1,27 @@
-// Translation-related functions
+// ============================================================================
+// TRANSLATION MANAGEMENT
+// ============================================================================
+// This module handles real-time translation control and language selection
 
-// Update language selector to show all configured target languages
+/**
+ * Update the translation language selector dropdown for a specific user
+ * 
+ * The selector shows all configured translation pairs in "source → target" format.
+ * Users can switch between different target languages to view translations in
+ * their preferred language.
+ * 
+ * Example: If configured with "en-US → [es-ES, ru-RU]", the dropdown shows:
+ * - en-US → es-ES
+ * - en-US → ru-RU
+ * 
+ * @param {string|number} uid - User ID to update selector for
+ */
 function updateLanguageSelector(uid) {
   const selector = $(`#translation-lang-${uid}`);
   const currentSelection = selector.val();
   
-  // Get all configured target languages from settings, consolidating by source
+  // Consolidate translation pairs by source language
+  // This prevents duplicates if multiple pairs have the same source
   const consolidatedPairs = {};
   translationSettings.pairs.forEach(pair => {
     if (!consolidatedPairs[pair.source]) {
@@ -18,7 +34,7 @@ function updateLanguageSelector(uid) {
     });
   });
   
-  // Create options from consolidated pairs
+  // Flatten into array of {source, target} objects for display
   const allTargetLanguages = Object.entries(consolidatedPairs).reduce((acc, [source, targets]) => {
     targets.forEach(target => {
       acc.push({ source, target });
@@ -26,20 +42,22 @@ function updateLanguageSelector(uid) {
     return acc;
   }, []);
 
+  // Populate dropdown with options
   selector.empty();
   allTargetLanguages.forEach(({ source, target }) => {
+    // Format: "source → target" (e.g., "en-US → es-ES")
     const option = $(`<option value="${target}">${source} → ${target}</option>`);
     selector.append(option);
   });
 
-  // Restore previous selection or select first option
+  // Restore previous selection if it still exists, otherwise use first option
   if (currentSelection && selector.find(`option[value="${currentSelection}"]`).length) {
     selector.val(currentSelection);
   } else {
     selector.find('option:first').prop('selected', true);
   }
 
-  // Log current selection for debugging
+  // Log for debugging
   console.log(`Language selector for ${uid} set to:`, selector.val());
 }
 
@@ -58,7 +76,29 @@ function updateAllLanguageSelectors() {
   });
 }
 
-// Real-time translation control functions
+// ============================================================================
+// REAL-TIME TASK CONFIGURATION UPDATES
+// ============================================================================
+
+/**
+ * Update STT task configuration during an active session
+ * 
+ * This powerful feature allows modifying transcription/translation settings
+ * without stopping and restarting the task. Supported updates:
+ * - Enable/disable translation
+ * - Change translation languages
+ * - Update speaking languages
+ * 
+ * The updateMask parameter specifies which fields to update:
+ * - "translateConfig.enable" - just the enable flag
+ * - "translateConfig.enable,translateConfig.languages" - enable and languages
+ * - "languages" - speaking languages
+ * 
+ * @param {string} updateMask - Comma-separated list of fields to update
+ * @param {Object} body - New configuration values
+ * @returns {Promise<Object>} API response
+ * @throws {Error} If no active task or API call fails
+ */
 async function updateTaskConfiguration(updateMask, body) {
   if (!taskId) {
     throw new Error("No active task to update");
@@ -66,8 +106,10 @@ async function updateTaskConfiguration(updateMask, body) {
   
   let url;
   let method;
-  let sequenceId = Date.now(); // Simple sequence ID based on timestamp
+  // Sequence ID ensures updates are applied in order (prevents race conditions)
+  let sequenceId = Date.now(); // Using timestamp is simple and works for most cases
   
+  // Build URL based on API version
   if (sttVersion === "7.x") {
     url = `${gatewayAddress}/api/speech-to-text/v1/projects/${options.appid}/agents/${taskId}/update?sequenceId=${sequenceId}&updateMask=${updateMask}`;
     method = 'POST';
@@ -76,6 +118,7 @@ async function updateTaskConfiguration(updateMask, body) {
     method = 'PATCH';
   }
   
+  // Make the update request
   const response = await fetch(url, {
     method: method,
     headers: {
@@ -93,7 +136,16 @@ async function updateTaskConfiguration(updateMask, body) {
   return await response.json();
 }
 
-// Function to disable translation during active session
+/**
+ * Disable translation during an active transcription session
+ * 
+ * This turns off translation without stopping transcription. Useful when:
+ * - User doesn't need translation anymore
+ * - Reducing costs (translation adds processing overhead)
+ * - Troubleshooting translation issues
+ * 
+ * Translation can be re-enabled later without restarting transcription.
+ */
 async function disableTranslationDuringSession() {
   try {
     if (!taskId) {
@@ -101,6 +153,7 @@ async function disableTranslationDuringSession() {
       return;
     }
     
+    // Update only the enable flag (keep language configuration)
     const updateMask = "translateConfig.enable";
     const body = {
       translateConfig: {
@@ -110,28 +163,31 @@ async function disableTranslationDuringSession() {
     
     await updateTaskConfiguration(updateMask, body);
     
-    // Update translation state
+    // Update local state
     translationEnabled = false;
     updateTranslationStatus();
     
-    // Clear only translation display overlays (not translation pairs in settings)
+    // Clear translation overlays (but keep transcription overlays visible)
     $("[id^=translationcaps-]").filter(function() {
       return this.id.match(/^translationcaps-\d+$/);
     }).text("");
     
+    // Update button states
     $("#enable-translation").prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
     $("#disable-translation").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+    
     showPopup("Translation disabled during session");
     
-    // Ensure translation controls remain visible
+    // Keep translation controls visible so user can re-enable easily
     setTimeout(() => {
       if (taskId) {
         $("#translation-controls").removeClass('hidden');
         console.log("Translation controls should be visible now");
-        // Clear only translation display overlays (not translation pairs in settings) with timeout, sometime RTM message arrives after task is stopped
+        
+        // Clear any late-arriving translation messages
         $("[id^=translationcaps-]").filter(function() {
-        return this.id.match(/^translationcaps-\d+$/);
-    }).text("");
+          return this.id.match(/^translationcaps-\d+$/);
+        }).text("");
       }
     }, 300);
   } catch (error) {
@@ -140,7 +196,16 @@ async function disableTranslationDuringSession() {
   }
 }
 
-// Function to enable translation during active session with existing languages
+/**
+ * Enable translation during an active transcription session
+ * 
+ * This turns on translation using the configured language pairs from settings.
+ * If translation was previously disabled, this re-enables it.
+ * 
+ * Requires:
+ * - At least one translation pair configured in STT settings
+ * - Active transcription session (taskId exists)
+ */
 async function enableTranslationDuringSession() {
   try {
     if (!taskId) {
@@ -148,7 +213,7 @@ async function enableTranslationDuringSession() {
       return;
     }
     
-    // Get current translation pairs from STT settings
+    // Get current translation pairs from STT settings modal
     const translationPairs = Array.from(document.querySelectorAll('#translation-pairs .translation-pair')).map(pair => {
       const source = pair.querySelector('.source-lang').value;
       const targets = Array.from(pair.querySelectorAll('.target-languages input')).map(input => input.value);
@@ -158,11 +223,13 @@ async function enableTranslationDuringSession() {
       };
     }).filter(pair => pair.source && pair.target.length > 0);
     
+    // Validation: must have at least one language pair
     if (translationPairs.length === 0) {
       showPopup("No translation pairs configured. Please configure translation pairs in STT settings first.");
       return;
     }
     
+    // Update both enable flag and languages
     let updateMask = "translateConfig.enable,translateConfig.languages";
     let body = {
       translateConfig: {
@@ -171,18 +238,16 @@ async function enableTranslationDuringSession() {
       }
     };
     
-    // Only include languages if they are different from current ones
-    // For now, we'll just enable translation without languages to avoid the "same languages" error
-    // The languages will be set when the user actually speaks
-    
     await updateTaskConfiguration(updateMask, body);
     
-    // Update translation state
+    // Update local state
     translationEnabled = true;
     updateTranslationStatus();
     
+    // Update button states
     $("#enable-translation").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
     $("#disable-translation").prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+    
     showPopup("Translation enabled");
   } catch (error) {
     console.error("Error enabling translation:", error);
@@ -315,6 +380,7 @@ async function updateTranslationLanguagesDuringSession() {
     $("#disable-translation").prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
     showPopup("Translation languages updated and enabled");
     document.getElementById('translationConfigModal').close();
+    if (typeof sendSttLanguagesToChannel === "function") sendSttLanguagesToChannel();
   } catch (error) {
     console.error("Error updating translation languages:", error);
     showPopup("Failed to update translation languages: " + error.message);
