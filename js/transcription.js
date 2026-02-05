@@ -223,12 +223,13 @@ function buildStartRequestBody() {
     };
   }
 
-  // Optional: S3 storage configuration for saving transcripts
-  // If configured, transcripts are saved as JSON files to your S3 bucket
+  // Optional: Caption/recording config (7.x) – only sent when storage is configured; sliceDuration applies to recorded slices
   const s3Bucket = $("#s3-bucket").val();
+  const sliceDurationVal = parseInt($("#slice-duration").val(), 10);
+  const sliceDuration = (sliceDurationVal >= 5 && sliceDurationVal <= 28800) ? sliceDurationVal : 60;
   if (s3Bucket) {
     body.captionConfig = {
-      sliceDuration: 60,  // Save transcript every 60 seconds
+      sliceDuration: sliceDuration,
       storage: {
         bucket: s3Bucket
       }

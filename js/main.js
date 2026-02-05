@@ -44,8 +44,15 @@ $(document).ready(function() {
 // Load translation settings from localStorage when page loads
 document.addEventListener('DOMContentLoaded', loadTranslationSettings);
 
-// Auto-save translation settings when STT modal is closed
-document.getElementById('sttModal').addEventListener('close', saveTranslationSettings);
+// Revert modal forms on close without Save (click-away or Cancel)
+document.getElementById('connectionModal').addEventListener('close', function () {
+  if (!connectionModalSaved) revertConnectionFormFromStorage();
+  connectionModalSaved = false;
+});
+document.getElementById('sttModal').addEventListener('close', function () {
+  if (!sttModalSaved) revertSTTFormFromStorage();
+  sttModalSaved = false;
+});
 
 // ============================================================================
 // CHANNEL JOIN/LEAVE HANDLERS
@@ -65,13 +72,8 @@ document.getElementById('sttModal').addEventListener('close', saveTranslationSet
  * After joining, you can start transcription to enable STT features.
  */
 $("#join").click(async function() {
-  // Validation: must have App ID and channel configured
-  if (!options.appid || !options.channel) {
-    showPopup("Please configure connection settings first");
-    return;
-  }
-  
-  // Parse UID based on user preference (string or integer)
+  // Read channel and UID from STT form (they live in STT Settings modal)
+  options.channel = $("#channel").val() || null;
   const uidVal = $("#uid").val();
   const uidString = $("#uid-string").is(":checked");
   let joinUid = null;
@@ -79,10 +81,20 @@ $("#join").click(async function() {
     joinUid = uidString ? uidVal : parseInt(uidVal, 10);
     if (!uidString && isNaN(joinUid)) joinUid = null;
   }
-  
+
+  // Validation: must have App ID and channel configured
+  if (!options.appid || !options.channel) {
+    showPopup("Please configure connection settings (App ID) and STT settings (Channel name)");
+    return;
+  }
+
   try {
-    // Join the channel - returns assigned UID if joinUid is null
-    options.uid = await client.join(options.appid, options.channel, null, joinUid);
+    if (uidString) {
+      AgoraRTC.setParameter("EXPERIMENTS", { enableStringuidCompatible: true });
+    }
+    var joinToken = $("#join-token").val();
+    joinToken = (joinToken && joinToken.trim()) ? joinToken.trim() : null;
+    options.uid = await client.join(options.appid, options.channel, joinToken, joinUid);
     console.log("Joined with UID:", options.uid);
     
     // Request camera and microphone access, create tracks

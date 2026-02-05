@@ -20,6 +20,11 @@
   <script src="proto/protobuf.min.js"></script>
   <script src="proto/index.js"></script>
 
+  <!-- Token builder (RTC only) - from convo_ai -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+  <script src="js/AccessToken2.js"></script>
+  <script src="js/RtcTokenBuilder2.js"></script>
+
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -39,7 +44,7 @@
       
       <div class="flex gap-3 items-center">
         <button 
-          onclick="document.getElementById('connectionModal').showModal()"
+          onclick="loadConnectionFormFromStorage(); connectionModalSaved = false; document.getElementById('connectionModal').showModal()"
           class="modern-btn modern-btn-primary"
         >
           <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,7 +54,7 @@
         </button>
         
         <button 
-          onclick="handleVersionChange();document.getElementById('sttModal').showModal();document.getElementById('request-preview').classList.add('hidden');"
+          onclick="loadSTTFormFromStorage(); if (typeof loadTranslationSettings === 'function') loadTranslationSettings(); sttModalSaved = false; handleVersionChange(); document.getElementById('sttModal').showModal(); document.getElementById('request-preview').classList.add('hidden');"
           class="modern-btn modern-btn-success"
         >
           <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,28 +173,25 @@
         <div>
           <label class="block mb-2">App ID</label>
           <input id="appid" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter App ID">
-          </div>
-        
-        <div>
-          <label class="block mb-2">Channel Name</label>
-          <input id="channel" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter channel name">
         </div>
-
         <div>
-          <label class="block mb-2">User ID (optional)</label>
-          <div class="flex items-center gap-3">
-            <input id="uid" type="text" class="flex-1 bg-gray-800 rounded p-2" placeholder="Enter user ID">
-            <label class="flex items-center text-xs gap-1.5 whitespace-nowrap">
-              <input id="uid-string" type="checkbox" class="align-middle">
-              Use string UID
-            </label>
-          </div>
+          <label class="block mb-2">App Certificate</label>
+          <input id="app-certificate" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter App Certificate (for token generation)">
+          <p class="text-gray-400 text-xs mt-1">Required only for generating RTC tokens. Not sent to the API.</p>
+        </div>
+        <div>
+          <label class="block mb-2">Customer Key</label>
+          <input id="key" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter customer key">
+        </div>
+        <div>
+          <label class="block mb-2">Customer Secret</label>
+          <input id="secret" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter customer secret">
         </div>
       </div>
 
       <div class="flex justify-end gap-4 mt-6">
         <button
-          onclick="this.closest('dialog').close()"
+          onclick="cancelConnectionModal()"
           class="modern-btn modern-btn-secondary"
         >
           Cancel
@@ -227,16 +229,29 @@
           </select>
         </div>
 
-        <!-- Authentication -->
+        <!-- Channel and User (7.x: used in rtcConfig and join) -->
         <div>
-          <label class="block mb-2">Customer Key</label>
-          <input id="key" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter customer key">
+          <label class="block mb-2">Channel Name</label>
+          <input id="channel" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter channel name">
         </div>
-        
         <div>
-          <label class="block mb-2">Customer Secret</label>
-          <input id="secret" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter customer secret">
-      </div>
+          <label class="block mb-2">User ID (optional)</label>
+          <div class="flex items-center gap-3">
+            <input id="uid" type="text" class="flex-1 bg-gray-800 rounded p-2" placeholder="Enter user ID">
+            <label class="flex items-center text-xs gap-1.5 whitespace-nowrap">
+              <input id="uid-string" type="checkbox" class="align-middle">
+              Use string UID
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block mb-2">RTC Token (optional)</label>
+          <div class="flex gap-2">
+            <input id="join-token" type="text" class="flex-1 bg-gray-800 rounded p-2" placeholder="RTC token for joining (optional)">
+            <button type="button" onclick="generateJoinRtcToken()" class="modern-btn modern-btn-secondary whitespace-nowrap" title="Generate RTC token for User ID above">Generate</button>
+          </div>
+          <p class="text-gray-400 text-xs mt-1">Uses Channel and User ID above. Empty UID = 0.</p>
+        </div>
 
         <!-- Languages -->
         <div>
@@ -294,7 +309,10 @@
         </div>
         <div>
               <label class="block mb-2">Sub Bot Token (Optional)</label>
-              <input id="puller-token" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter sub bot token">
+              <div class="flex gap-2">
+                <input id="puller-token" type="text" class="flex-1 bg-gray-800 rounded p-2" placeholder="Enter sub bot token">
+                <button type="button" onclick="generateRtcTokenForInput('puller-token', 'puller-uid')" class="modern-btn modern-btn-secondary whitespace-nowrap" title="Generate RTC token for Sub Bot UID">Generate</button>
+              </div>
               <p class="text-gray-400 text-xs mt-1" id="sub-bot-token-note">Not used in 7.x version</p>
         </div>
             <div>
@@ -303,7 +321,10 @@
       </div>
         <div>
               <label class="block mb-2">Pub Bot Token (Optional)</label>
-              <input id="pusher-token" type="text" class="w-full bg-gray-800 rounded p-2" placeholder="Enter pub bot token">
+              <div class="flex gap-2">
+                <input id="pusher-token" type="text" class="flex-1 bg-gray-800 rounded p-2" placeholder="Enter pub bot token">
+                <button type="button" onclick="generateRtcTokenForInput('pusher-token', 'pusher-uid')" class="modern-btn modern-btn-secondary whitespace-nowrap" title="Generate RTC token for Pub Bot UID">Generate</button>
+              </div>
         </div>
           </div>
         </div>
@@ -326,6 +347,16 @@
             </div>
         </div>
       </div>
+
+        <!-- Caption / Recording (7.x captionConfig) -->
+        <div class="border-t border-gray-700 pt-4">
+          <h3 class="font-semibold mb-4">Caption Recording</h3>
+          <div>
+            <label class="block mb-2">Slice Duration (seconds)</label>
+            <input id="slice-duration" type="number" class="w-full bg-gray-800 rounded p-2" value="60" min="5" max="28800" placeholder="60">
+            <p class="text-gray-400 text-sm mt-1">Slice size of the recorded subtitle file (5–28800). Default 60.</p>
+          </div>
+        </div>
 
         <!-- Storage Configuration -->
         <div class="border-t border-gray-700 pt-4">
@@ -385,7 +416,7 @@
 
       <div class="flex justify-end gap-4 mt-8">
         <button 
-          onclick="this.closest('dialog').close()"
+          onclick="cancelSTTModal()"
           class="modern-btn modern-btn-secondary"
         >
           Cancel

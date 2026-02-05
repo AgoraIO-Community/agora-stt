@@ -134,60 +134,118 @@ if (!client) {
  * This provides a better user experience by remembering their configuration
  */
 function loadSavedSettings() {
-  // Load connection settings (App ID, channel name, UID preferences)
+  // Load connection settings (App ID, App Certificate, Customer Key, Customer Secret)
   const savedConnection = JSON.parse(localStorage.getItem('connectionSettings') || '{}');
   if (savedConnection.appid) {
     $("#appid").val(savedConnection.appid);
     options.appid = savedConnection.appid;
   }
-  if (savedConnection.channel) {
-    $("#channel").val(savedConnection.channel);
-    options.channel = savedConnection.channel;
+  if (savedConnection.appCertificate !== undefined) $("#app-certificate").val(savedConnection.appCertificate);
+  if (savedConnection.key) $("#key").val(savedConnection.key);
+  if (savedConnection.secret) $("#secret").val(savedConnection.secret);
+
+  // Load STT settings (channel, uid, languages, etc. – channel/uid also set options for join/start)
+  const savedSTT = JSON.parse(localStorage.getItem('sttSettings') || '{}');
+  if (savedSTT.channel) {
+    $("#channel").val(savedSTT.channel);
+    options.channel = savedSTT.channel;
   }
-  if (savedConnection.uid !== undefined) {
-    $("#uid").val(savedConnection.uid);
-  }
-  // Restore string UID preference (Agora supports both string and integer UIDs)
-  if (savedConnection.uidString) {
+  if (savedSTT.uid !== undefined) $("#uid").val(savedSTT.uid);
+  if (savedSTT.uidString) {
     $("#uid-string").prop('checked', true);
   } else {
     $("#uid-string").prop('checked', false);
   }
-
-  // Load STT (Speech-to-Text) settings
-  const savedSTT = JSON.parse(localStorage.getItem('sttSettings') || '{}');
-  if (savedSTT.key) $("#key").val(savedSTT.key);
-  if (savedSTT.secret) $("#secret").val(savedSTT.secret);
+  if (savedSTT.joinToken !== undefined) $("#join-token").val(savedSTT.joinToken);
+  if (savedSTT.uid !== undefined && savedSTT.uid !== '') {
+    const uidString = !!savedSTT.uidString;
+    options.uid = uidString ? savedSTT.uid : parseInt(savedSTT.uid, 10);
+  } else {
+    options.uid = null;
+  }
   if (savedSTT.version) {
     $("#stt-version").val(savedSTT.version);
     sttVersion = savedSTT.version;
   }
   if (savedSTT.maxIdleTime) $("#max-idle-time").val(savedSTT.maxIdleTime);
+  if (savedSTT.sliceDuration) $("#slice-duration").val(savedSTT.sliceDuration);
   if (savedSTT.speakingLanguage) $("#speaking-language").val(savedSTT.speakingLanguage);
   if (savedSTT.translationLanguage) $("#translation-language").val(savedSTT.translationLanguage);
 }
+
+/** Populate Connection modal form from localStorage (call when opening modal) */
+function loadConnectionFormFromStorage() {
+  const saved = JSON.parse(localStorage.getItem('connectionSettings') || '{}');
+  if (saved.appid !== undefined) $("#appid").val(saved.appid);
+  if (saved.appCertificate !== undefined) $("#app-certificate").val(saved.appCertificate);
+  if (saved.key !== undefined) $("#key").val(saved.key);
+  if (saved.secret !== undefined) $("#secret").val(saved.secret);
+}
+
+/** Revert Connection modal form to saved state (call on cancel/close without save) */
+function revertConnectionFormFromStorage() {
+  loadConnectionFormFromStorage();
+}
+
+/** Populate STT modal form from localStorage (call when opening modal) */
+function loadSTTFormFromStorage() {
+  const saved = JSON.parse(localStorage.getItem('sttSettings') || '{}');
+  if (saved.channel !== undefined) $("#channel").val(saved.channel);
+  if (saved.uid !== undefined) $("#uid").val(saved.uid);
+  $("#uid-string").prop('checked', !!saved.uidString);
+  if (saved.joinToken !== undefined) $("#join-token").val(saved.joinToken);
+  if (saved.version) $("#stt-version").val(saved.version);
+  if (saved.maxIdleTime) $("#max-idle-time").val(saved.maxIdleTime);
+  if (saved.sliceDuration) $("#slice-duration").val(saved.sliceDuration);
+  if (saved.speakingLanguages && Array.isArray(saved.speakingLanguages)) {
+    var container = document.getElementById('speaking-languages');
+    if (container) {
+      container.innerHTML = '';
+      saved.speakingLanguages.forEach(function (lang, i) {
+        var div = document.createElement('div');
+        div.className = 'flex gap-2';
+        div.innerHTML = '<input type="text" class="flex-1 bg-gray-800 rounded p-2" value="' + (lang || '').replace(/"/g, '&quot;') + '"><button onclick="addLanguageInput(\'speaking-languages\')" class="modern-btn-icon">+</button>';
+        container.appendChild(div);
+      });
+      if (saved.speakingLanguages.length === 0) {
+        var div = document.createElement('div');
+        div.className = 'flex gap-2';
+        div.innerHTML = '<input type="text" class="flex-1 bg-gray-800 rounded p-2" value="en-US"><button onclick="addLanguageInput(\'speaking-languages\')" class="modern-btn-icon">+</button>';
+        container.appendChild(div);
+      }
+    }
+  }
+  // Translation pairs are restored by loadTranslationSettings
+}
+
+/** Revert STT modal form to saved state (call on cancel/close without save) */
+function revertSTTFormFromStorage() {
+  loadSTTFormFromStorage();
+  if (typeof loadTranslationSettings === 'function') loadTranslationSettings();
+}
+
+// Flags so close handler knows whether to revert (cancel) or not (save)
+var connectionModalSaved = false;
+var sttModalSaved = false;
 
 /**
  * Save connection settings to both memory and localStorage
  * Called when user clicks "Save" in the Connection Settings modal
  */
 function saveConnectionSettings() {
-  options.appid = $("#appid").val();
-  options.channel = $("#channel").val();
-  
-  // Parse UID based on type (string or integer)
-  const uidVal = $("#uid").val();
-  const uidString = $("#uid-string").is(":checked");
-  options.uid = uidVal !== '' ? (uidString ? uidVal : parseInt(uidVal, 10)) : null;
-  
-  // Persist to localStorage for future sessions
+  options.appid = $("#appid").val() || null;
+  const appCertificate = $("#app-certificate").val();
+  const key = $("#key").val();
+  const secret = $("#secret").val();
+
   localStorage.setItem('connectionSettings', JSON.stringify({
     appid: options.appid,
-    channel: options.channel,
-    uid: uidVal,
-    uidString: uidString
+    appCertificate: appCertificate,
+    key: key,
+    secret: secret
   }));
-  
+
+  connectionModalSaved = true;
   document.getElementById('connectionModal').close();
   showPopup("Connection settings saved");
 }
@@ -197,16 +255,90 @@ function saveSTTSettings() {
     .map(input => input.value)
     .filter(value => value.trim() !== '');
 
+  const channel = $("#channel").val();
+  const uidVal = $("#uid").val();
+  const uidString = $("#uid-string").is(":checked");
+  options.channel = channel || null;
+  options.uid = uidVal !== '' ? (uidString ? uidVal : parseInt(uidVal, 10)) : null;
+
+  var joinToken = $("#join-token").val();
   localStorage.setItem('sttSettings', JSON.stringify({
-    key: $("#key").val(),
-    secret: $("#secret").val(),
+    channel: channel,
+    uid: uidVal,
+    uidString: uidString,
+    joinToken: joinToken,
     speakingLanguages: speakingLanguages,
     version: $("#stt-version").val(),
-    maxIdleTime: $("#max-idle-time").val()
+    maxIdleTime: $("#max-idle-time").val(),
+    sliceDuration: $("#slice-duration").val()
   }));
-  
+
+  if (typeof saveTranslationSettings === 'function') saveTranslationSettings();
+
+  sttModalSaved = true;
   document.getElementById('sttModal').close();
   showPopup("STT settings saved");
+}
+
+function cancelConnectionModal() {
+  revertConnectionFormFromStorage();
+  document.getElementById('connectionModal').close();
+}
+
+function cancelSTTModal() {
+  revertSTTFormFromStorage();
+  document.getElementById('sttModal').close();
+}
+
+// ============================================================================
+// RTC TOKEN GENERATION (uses RtcTokenBuilder2 from convo_ai – RTC only)
+// ============================================================================
+
+var RTC_TOKEN_EXPIRE = 1800; // 30 minutes
+
+/**
+ * Generate an RTC token and put it into the given input.
+ * Uses App ID and App Certificate from Connection Settings, channel from STT Settings, UID from the given UID input.
+ * @param {string} tokenInputId - ID of the input to receive the token (e.g. 'pusher-token', 'puller-token')
+ * @param {string} uidInputId - ID of the input that holds the UID for the token (e.g. 'pusher-uid', 'puller-uid')
+ */
+async function generateRtcTokenForInput(tokenInputId, uidInputId) {
+  var appId = $("#appid").val();
+  var appCertificate = $("#app-certificate").val();
+  var channelName = $("#channel").val();
+  var uidVal = $("#" + uidInputId).val();
+  if (!appId || !appCertificate) {
+    showPopup("Please set App ID and App Certificate in Connection Settings first");
+    return;
+  }
+  if (!channelName) {
+    showPopup("Please set Channel Name in STT Settings first");
+    return;
+  }
+  if (!uidVal || String(uidVal).trim() === "") {
+    showPopup("Please enter a UID for " + (uidInputId === "pusher-uid" ? "Pub Bot" : "Sub Bot") + " first");
+    return;
+  }
+  try {
+    var token = await RtcTokenBuilder.buildTokenWithUserAccount(
+      appId,
+      appCertificate,
+      channelName,
+      String(uidVal).trim(),
+      RtcRole.PUBLISHER,
+      RTC_TOKEN_EXPIRE,
+      RTC_TOKEN_EXPIRE
+    );
+    if (token) {
+      $("#" + tokenInputId).val(token);
+      showPopup("RTC token generated (valid 30 minutes)");
+    } else {
+      showPopup("Token generation failed");
+    }
+  } catch (err) {
+    console.error("Token generation error:", err);
+    showPopup("Token error: " + (err.message || String(err)));
+  }
 }
 
 // ============================================================================
@@ -226,7 +358,7 @@ function GetAuthorization() {
   const customerSecret = $("#secret").val();
   
   if (!customerKey || !customerSecret) {
-    showPopup("Please configure STT settings first");
+    showPopup("Please configure Connection settings (Customer Key and Secret) first");
     return "";
   }
   

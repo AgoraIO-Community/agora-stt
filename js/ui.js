@@ -35,17 +35,26 @@ function updateButtonStates(state) {
 var popups = 0;
 
 function showPopup(message) {
-  const newPopup = popups + 1;
-  console.log(`Popup count: ${newPopup}`);
-  const y = $(`<div id="popup-${newPopup}" class="popupHidden">${message}</div>`);
+  var openDialog = document.querySelector("dialog[open]");
+  if (openDialog) {
+    var toast = document.createElement("div");
+    toast.textContent = message;
+    toast.style.cssText = "position:absolute;top:1rem;left:50%;transform:translateX(-50%);z-index:10001;padding:0.4rem 0.75rem;border-radius:0.5rem;background:linear-gradient(135deg,#1e293b,#0f172a);color:#fff;font-size:0.875rem;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.3);border:1px solid rgba(6,182,212,0.3);";
+    openDialog.style.position = "relative";
+    openDialog.appendChild(toast);
+    setTimeout(function() {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 3000);
+    return;
+  }
+  var newPopup = popups + 1;
+  var y = $("<div id=\"popup-" + newPopup + "\" class=\"popupHidden\">" + message + "</div>");
   $("#popup-section").append(y);
-  const x = document.getElementById(`popup-${newPopup}`);
-  x.className = "popupShow";
-  const z = popups * 10;
-  $(`#popup-${newPopup}`).css("left", `${50 + z}%`);
+  var x = document.getElementById("popup-" + newPopup);
+  if (x) x.className = "popupShow";
   popups++;
   setTimeout(function() {
-    $(`#popup-${newPopup}`).remove();
+    $("#popup-" + newPopup).remove();
     popups--;
   }, 3000);
 }
