@@ -44,15 +44,20 @@ $(document).ready(function() {
 // Load translation settings from localStorage when page loads
 document.addEventListener('DOMContentLoaded', loadTranslationSettings);
 
-// Revert modal forms on close without Save (click-away or Cancel)
+// On close without Save: revert to snapshot (click-away or Cancel). Auto-save already persists on edit.
 document.getElementById('connectionModal').addEventListener('close', function () {
-  if (!connectionModalSaved) revertConnectionFormFromStorage();
+  if (!connectionModalSaved) applyConnectionSnapshot(connectionModalSnapshot);
   connectionModalSaved = false;
 });
 document.getElementById('sttModal').addEventListener('close', function () {
-  if (!sttModalSaved) revertSTTFormFromStorage();
+  if (!sttModalSaved) applySTTSnapshot(sttModalSnapshot);
   sttModalSaved = false;
 });
+// Auto-save: debounced persist while modal is open
+document.getElementById('connectionModal').addEventListener('input', debouncedConnectionPersist);
+document.getElementById('connectionModal').addEventListener('change', debouncedConnectionPersist);
+document.getElementById('sttModal').addEventListener('input', debouncedSTTPersist);
+document.getElementById('sttModal').addEventListener('change', debouncedSTTPersist);
 
 // ============================================================================
 // CHANNEL JOIN/LEAVE HANDLERS
@@ -89,9 +94,6 @@ $("#join").click(async function() {
   }
 
   try {
-    if (uidString) {
-      AgoraRTC.setParameter("EXPERIMENTS", { enableStringuidCompatible: true });
-    }
     var joinToken = $("#join-token").val();
     joinToken = (joinToken && joinToken.trim()) ? joinToken.trim() : null;
     options.uid = await client.join(options.appid, options.channel, joinToken, joinUid);

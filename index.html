@@ -44,7 +44,7 @@
       
       <div class="flex gap-3 items-center">
         <button 
-          onclick="loadConnectionFormFromStorage(); connectionModalSaved = false; document.getElementById('connectionModal').showModal()"
+          onclick="loadConnectionFormFromStorage(); connectionModalSnapshot = getConnectionFormSnapshot(); connectionModalSaved = false; document.getElementById('connectionModal').showModal()"
           class="modern-btn modern-btn-primary"
         >
           <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,7 +54,7 @@
         </button>
         
         <button 
-          onclick="loadSTTFormFromStorage(); if (typeof loadTranslationSettings === 'function') loadTranslationSettings(); sttModalSaved = false; handleVersionChange(); document.getElementById('sttModal').showModal(); document.getElementById('request-preview').classList.add('hidden');"
+          onclick="loadSTTFormFromStorage(); if (typeof loadTranslationSettings === 'function') loadTranslationSettings(); sttModalSnapshot = getSTTFormSnapshot(); sttModalSaved = false; handleVersionChange(); document.getElementById('sttModal').showModal(); document.getElementById('request-preview').classList.add('hidden');"
           class="modern-btn modern-btn-success"
         >
           <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
