@@ -116,6 +116,10 @@ function utf8ArrayToString(array) {
   return out;
 }
 
+// Enable string UID compatibility before creating client (no effect when using integer UIDs)
+if (typeof AgoraRTC !== 'undefined') {
+  AgoraRTC.setParameter("EXPERIMENTS", { enableStringuidCompatible: true });
+}
 if (!client) {
   client = AgoraRTC.createClient({
     mode: "live",  // "live" mode for broadcasting scenarios (host/audience roles)
@@ -182,6 +186,53 @@ function loadConnectionFormFromStorage() {
   if (saved.secret !== undefined) $("#secret").val(saved.secret);
 }
 
+/** Snapshot of Connection form (taken on open for cancel/close revert) */
+var connectionModalSnapshot = null;
+
+function getConnectionFormSnapshot() {
+  return {
+    appid: $("#appid").val(),
+    appCertificate: $("#app-certificate").val(),
+    key: $("#key").val(),
+    secret: $("#secret").val()
+  };
+}
+
+function applyConnectionSnapshot(snap) {
+  if (!snap) return;
+  localStorage.setItem('connectionSettings', JSON.stringify({
+    appid: snap.appid,
+    appCertificate: snap.appCertificate,
+    key: snap.key,
+    secret: snap.secret
+  }));
+  $("#appid").val(snap.appid);
+  $("#app-certificate").val(snap.appCertificate);
+  $("#key").val(snap.key);
+  $("#secret").val(snap.secret);
+  options.appid = (snap.appid && String(snap.appid).trim()) ? String(snap.appid).trim() : null;
+}
+
+/** Persist Connection form to localStorage (auto-save, no close) */
+function persistConnectionSettings() {
+  if (!document.getElementById('connectionModal') || !document.getElementById('connectionModal').open) return;
+  var appid = ($("#appid").val() || "").trim() || null;
+  options.appid = appid;
+  var snap = getConnectionFormSnapshot();
+  localStorage.setItem('connectionSettings', JSON.stringify({
+    appid: snap.appid,
+    appCertificate: snap.appCertificate,
+    key: snap.key,
+    secret: snap.secret
+  }));
+}
+
+var _connectionPersistTimeout = null;
+function debouncedConnectionPersist() {
+  clearTimeout(_connectionPersistTimeout);
+  _connectionPersistTimeout = setTimeout(persistConnectionSettings, 500);
+}
+
 /** Revert Connection modal form to saved state (call on cancel/close without save) */
 function revertConnectionFormFromStorage() {
   loadConnectionFormFromStorage();
@@ -216,6 +267,85 @@ function loadSTTFormFromStorage() {
     }
   }
   // Translation pairs are restored by loadTranslationSettings
+}
+
+/** Snapshot of STT form (taken on open for cancel/close revert) */
+var sttModalSnapshot = null;
+
+function getSTTFormSnapshot() {
+  var speakingLanguages = Array.from(document.querySelectorAll('#speaking-languages input'))
+    .map(function (input) { return input.value; })
+    .filter(function (v) { return (v || '').trim() !== ''; });
+  var translationPairs = [];
+  if (typeof document.querySelectorAll === 'function') {
+    translationPairs = Array.from(document.querySelectorAll('.translation-pair')).map(function (pair) {
+      var source = pair.querySelector('.source-lang');
+      var targets = Array.from(pair.querySelectorAll('.target-languages input')).map(function (input) { return input.value; }).filter(function (v) { return (v || '').trim() !== ''; });
+      return {
+        source: source ? source.value : '',
+        targets: targets
+      };
+    }).filter(function (p) { return p.source && p.targets.length > 0; });
+  }
+  return {
+    stt: {
+      channel: $("#channel").val(),
+      uid: $("#uid").val(),
+      uidString: $("#uid-string").is(":checked"),
+      joinToken: $("#join-token").val(),
+      speakingLanguages: speakingLanguages,
+      version: $("#stt-version").val(),
+      maxIdleTime: $("#max-idle-time").val(),
+      sliceDuration: $("#slice-duration").val()
+    },
+    translationPairs: translationPairs
+  };
+}
+
+function applySTTSnapshot(snap) {
+  if (!snap || !snap.stt) return;
+  localStorage.setItem('sttSettings', JSON.stringify(snap.stt));
+  if (typeof translationSettings !== 'undefined') {
+    translationSettings.pairs = snap.translationPairs || [];
+    localStorage.setItem('translationSettings', JSON.stringify(translationSettings));
+  }
+  loadSTTFormFromStorage();
+  if (typeof loadTranslationSettings === 'function') loadTranslationSettings();
+  options.channel = (snap.stt.channel && String(snap.stt.channel).trim()) ? String(snap.stt.channel).trim() : null;
+  var uidVal = snap.stt.uid;
+  var uidString = !!snap.stt.uidString;
+  options.uid = (uidVal !== undefined && uidVal !== '' && String(uidVal).trim() !== '') ? (uidString ? uidVal : parseInt(uidVal, 10)) : null;
+}
+
+/** Persist STT form to localStorage (auto-save, no close) */
+function persistSTTSettings() {
+  if (!document.getElementById('sttModal') || !document.getElementById('sttModal').open) return;
+  var channel = $("#channel").val();
+  var uidVal = $("#uid").val();
+  var uidString = $("#uid-string").is(":checked");
+  options.channel = (channel && String(channel).trim()) ? String(channel).trim() : null;
+  options.uid = (uidVal !== '' && String(uidVal).trim() !== '') ? (uidString ? uidVal : parseInt(uidVal, 10)) : null;
+  var speakingLanguages = Array.from(document.querySelectorAll('#speaking-languages input'))
+    .map(function (input) { return input.value; })
+    .filter(function (v) { return (v || '').trim() !== ''; });
+  var joinToken = $("#join-token").val();
+  localStorage.setItem('sttSettings', JSON.stringify({
+    channel: channel,
+    uid: uidVal,
+    uidString: uidString,
+    joinToken: joinToken,
+    speakingLanguages: speakingLanguages,
+    version: $("#stt-version").val(),
+    maxIdleTime: $("#max-idle-time").val(),
+    sliceDuration: $("#slice-duration").val()
+  }));
+  if (typeof saveTranslationSettings === 'function') saveTranslationSettings();
+}
+
+var _sttPersistTimeout = null;
+function debouncedSTTPersist() {
+  clearTimeout(_sttPersistTimeout);
+  _sttPersistTimeout = setTimeout(persistSTTSettings, 500);
 }
 
 /** Revert STT modal form to saved state (call on cancel/close without save) */
@@ -281,12 +411,14 @@ function saveSTTSettings() {
 }
 
 function cancelConnectionModal() {
-  revertConnectionFormFromStorage();
+  applyConnectionSnapshot(connectionModalSnapshot);
+  connectionModalSaved = true;
   document.getElementById('connectionModal').close();
 }
 
 function cancelSTTModal() {
-  revertSTTFormFromStorage();
+  applySTTSnapshot(sttModalSnapshot);
+  sttModalSaved = true;
   document.getElementById('sttModal').close();
 }
 

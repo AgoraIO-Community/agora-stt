@@ -159,6 +159,9 @@ async function stopTranscription() {
  * @returns {Object} Complete configuration object ready for API submission
  */
 function buildStartRequestBody() {
+  // Channel from STT form (same source for preview and actual request)
+  var channel = ($("#channel").val() || "").trim() || options.channel;
+
   // Core configuration
   const body = {
     // Speaking languages: languages the agent should transcribe
@@ -173,7 +176,7 @@ function buildStartRequestBody() {
     
     // RTC configuration: how the agent joins and operates in the Agora channel
     rtcConfig: {
-      channelName: options.channel,
+      channelName: channel,
       pubBotUid: $("#pusher-uid").val()  // UID for publishing transcription results
     }
   };
@@ -187,7 +190,7 @@ function buildStartRequestBody() {
 
   // Version 7.x requires a "name" field for the agent
   if (sttVersion === "7.x") {
-    body.name = options.channel; // Using channel name as the agent name
+    body.name = channel; // Using channel name as the agent name
   }
 
   // Optional: RTC token for pub bot (if channel requires authentication)
